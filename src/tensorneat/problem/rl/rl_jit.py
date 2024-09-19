@@ -61,7 +61,9 @@ class RLEnv(BaseProblem):
 
             rewards, episodes = jax.jit(vmap(sample))(keys)
 
-            obs = jax.device_get(episodes["obs"])  # shape: (sample_episodes, max_step, *input_shape)
+            obs = jax.device_get(
+                episodes["obs"]
+            )  # shape: (sample_episodes, max_step, *input_shape)
             obs = obs.reshape(
                 -1, *self.input_shape
             )  # shape: (sample_episodes * max_step, *input_shape)
@@ -85,6 +87,7 @@ class RLEnv(BaseProblem):
         return state
 
     def evaluate(self, state: State, randkey, act_func: Callable, params):
+        print("state", state)
         keys = jax.random.split(randkey, self.repeat_times)
         rewards = vmap(
             self._evaluate_once, in_axes=(None, 0, None, None, None, None, None)
