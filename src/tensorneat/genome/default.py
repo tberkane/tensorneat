@@ -139,10 +139,10 @@ class DefaultGenome(BaseGenome):
 
         if self.output_transform is None:
             print("Transform is None")
-            output = vals[self.output_idx]
+            output = vals[:, self.output_idx]
         else:
             print("Transform is not None")
-            output = self.output_transform(vals[self.output_idx])
+            output = self.output_transform(vals[:, self.output_idx])
 
         print(f"Output shape: {output.shape}")
         return output
