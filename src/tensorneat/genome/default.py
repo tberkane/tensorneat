@@ -328,11 +328,26 @@ class DefaultGenome(BaseGenome):
 
     def compute_gradients(self, state, nodes, conns, inputs, targets):
         def loss_fn(nodes, conns):
-            transformed = self.transform(state, nodes, conns)
-            outputs = self.forward(state, transformed, inputs)
-            return jnp.mean((outputs - targets) ** 2)
+            print("Nodes shape:", nodes.shape)
+            print("Conns shape:", conns.shape)
+            print("Inputs shape:", inputs.shape)
+            print("Targets shape:", targets.shape)
 
-        return jax.grad(loss_fn)(nodes, conns)
+            transformed = self.transform(state, nodes, conns)
+            print("Transformed shape:", jax.tree_map(lambda x: x.shape, transformed))
+
+            outputs = self.forward(state, transformed, inputs)
+            print("Outputs shape:", outputs.shape)
+
+            loss = jnp.mean((outputs - targets) ** 2)
+            print("Loss:", loss)
+
+            return loss
+
+        gradients = jax.grad(loss_fn)(nodes, conns)
+        print("Gradients shapes:", jax.tree_map(lambda x: x.shape, gradients))
+
+        return gradients
 
     def compute_loss(self, outputs, targets):
         # Compute cross-entropy loss
