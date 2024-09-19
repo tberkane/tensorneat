@@ -82,10 +82,18 @@ def apply_aggregation(idx, z, agg_funcs):
     """
     idx = jnp.asarray(idx, dtype=jnp.int32)
 
+    def all_nan_case():
+        return jnp.full((z.shape[-1],), jnp.nan)  # Return NaNs with shape (1200,)
+
+    def aggregation_case():
+        return jax.lax.switch(
+            idx, agg_funcs, z
+        )  # Apply aggregation to the entire input
+
     return jax.lax.cond(
         jnp.all(jnp.isnan(z)),
-        lambda: jnp.nan,  # all inputs are nan
-        lambda: jax.lax.switch(idx, agg_funcs, z),  # otherwise
+        all_nan_case,
+        aggregation_case,
     )
 
 
