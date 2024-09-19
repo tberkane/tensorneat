@@ -58,6 +58,7 @@ agg_name2sympy = {
 ACT = FunctionManager(act_name2jnp, act_name2sympy)
 AGG = FunctionManager(agg_name2jnp, agg_name2sympy)
 
+
 def apply_activation(idx, z, act_funcs):
     """
     calculate activation function for each node
@@ -74,6 +75,7 @@ def apply_activation(idx, z, act_funcs):
 
     return res
 
+
 def apply_aggregation(idx, z, agg_funcs):
     """
     calculate activation function for inputs of node
@@ -82,9 +84,12 @@ def apply_aggregation(idx, z, agg_funcs):
 
     return jax.lax.cond(
         jnp.all(jnp.isnan(z)),
-        lambda: jnp.nan,  # all inputs are nan
+        lambda: jnp.full_like(
+            z, jnp.nan
+        ),  # Return an array of NaNs with the same shape as z
         lambda: jax.lax.switch(idx, agg_funcs, z),  # otherwise
     )
+
 
 def get_func_name(func):
     name = func.__name__
