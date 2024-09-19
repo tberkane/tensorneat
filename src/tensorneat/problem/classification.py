@@ -5,6 +5,8 @@ import jax.numpy as jnp
 
 
 class ClassificationProblem(BaseProblem):
+    jitable = True
+
     def __init__(self, test_data):
         self.test_data = test_data
 
