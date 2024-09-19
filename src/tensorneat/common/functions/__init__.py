@@ -87,7 +87,9 @@ def apply_aggregation(idx, z, agg_funcs):
         lambda: jnp.full_like(
             z, jnp.nan
         ),  # Return an array of NaNs with the same shape as z
-        lambda: jax.lax.switch(idx, agg_funcs, z),  # otherwise
+        lambda: jax.vmap(lambda i, x: jax.lax.switch(i, agg_funcs, x))(
+            idx, z
+        ),  # Apply aggregation to each row
     )
 
 
