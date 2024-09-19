@@ -99,7 +99,8 @@ class DefaultGenome(BaseGenome):
                 hit_attrs = attach_with_inf(
                     conns_attrs, conn_indices
                 )  # fetch conn attrs
-
+                print("hit_attrs shape:", hit_attrs.shape)
+                print("values shape:", values.shape)
                 # Modify this part
                 ins = vmap(lambda a, v: self.conn_gene.forward(state, a, v))(
                     hit_attrs, values
