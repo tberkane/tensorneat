@@ -2,7 +2,7 @@ from tensorneat.common import State, StatefulBaseClass
 
 
 class BaseAlgorithm(StatefulBaseClass):
-    def ask(self, state: State):
+    def ask(self, state, training_data=None, num_epochs=1):
         """require the population to be evaluated"""
         raise NotImplementedError
 

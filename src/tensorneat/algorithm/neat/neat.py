@@ -69,21 +69,20 @@ class NEAT(BaseAlgorithm):
 
         return state.update(randkey=randkey)
 
-    def ask(self, state, training_data, num_epochs=10):
+    def ask(self, state, training_data=None, num_epochs=1):
         pop_nodes, pop_conns = state.pop_nodes, state.pop_conns
 
-        print(
-            f"Starting training for {self.pop_size} networks, {num_epochs} epochs each"
-        )
-
-        for i in range(self.pop_size):
-            nodes, conns = pop_nodes[i], pop_conns[i]
-            print(f"Training network {i+1}/{self.pop_size}")
-            for epoch in range(num_epochs):
-                print(f"  Epoch {epoch+1}/{num_epochs}")
-                nodes, conns = self.train_network(state, nodes, conns, training_data)
-            pop_nodes = pop_nodes.at[i].set(nodes)
-            pop_conns = pop_conns.at[i].set(conns)
+        if training_data is not None:
+            for i in range(self.pop_size):
+                print(f"Training network {i+1}/{self.pop_size}")
+                nodes, conns = pop_nodes[i], pop_conns[i]
+                for _ in range(num_epochs):
+                    print(f"  Epoch {_+1}/{num_epochs}")
+                    nodes, conns = self.train_network(
+                        state, nodes, conns, training_data
+                    )
+                pop_nodes = pop_nodes.at[i].set(nodes)
+                pop_conns = pop_conns.at[i].set(conns)
 
         print("Training completed")
         return pop_nodes, pop_conns

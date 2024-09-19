@@ -20,6 +20,8 @@ class Pipeline(StatefulBaseClass):
         generation_limit: int = 1000,
         is_save: bool = False,
         save_dir=None,
+        training_data=None,  # New parameter
+        num_epochs: int = 1,  # New parameter
     ):
         assert problem.jitable, "Currently, problem must be jitable"
 
@@ -54,6 +56,9 @@ class Pipeline(StatefulBaseClass):
             if not os.path.exists(self.genome_dir):
                 os.makedirs(self.genome_dir)
 
+        self.training_data = training_data
+        self.num_epochs = num_epochs
+
     def setup(self, state=State()):
         print("initializing")
         state = state.register(randkey=jax.random.PRNGKey(self.seed))
@@ -77,7 +82,8 @@ class Pipeline(StatefulBaseClass):
         randkey_, randkey = jax.random.split(state.randkey)
         keys = jax.random.split(randkey_, self.pop_size)
 
-        pop = self.algorithm.ask(state)
+        # Modify the ask method call to include training data and num_epochs
+        pop = self.algorithm.ask(state, self.training_data, self.num_epochs)
 
         pop_transformed = jax.vmap(self.algorithm.transform, in_axes=(None, 0))(
             state, pop
@@ -90,7 +96,7 @@ class Pipeline(StatefulBaseClass):
         # replace nan with -inf
         fitnesses = jnp.where(jnp.isnan(fitnesses), -jnp.inf, fitnesses)
 
-        previous_pop = self.algorithm.ask(state)
+        previous_pop = self.algorithm.ask(state, self.training_data, self.num_epochs)
         state = self.algorithm.tell(state, fitnesses)
 
         return state.update(randkey=randkey), previous_pop, fitnesses
@@ -134,7 +140,7 @@ class Pipeline(StatefulBaseClass):
         return state, self.best_genome
 
     def analysis(self, state, pop, fitnesses):
-        
+
         generation = int(state.generation)
 
         valid_fitnesses = fitnesses[~np.isinf(fitnesses)]
@@ -158,9 +164,7 @@ class Pipeline(StatefulBaseClass):
         if self.is_save:
             # save best
             best_genome = jax.device_get((pop[0][max_idx], pop[1][max_idx]))
-            file_name = os.path.join(
-                self.genome_dir, f"{generation}.npz"
-            )
+            file_name = os.path.join(self.genome_dir, f"{generation}.npz")
             with open(file_name, "wb") as f:
                 np.savez(
                     f,
@@ -171,9 +175,7 @@ class Pipeline(StatefulBaseClass):
 
             # append log
             with open(os.path.join(self.save_dir, "log.txt"), "a") as f:
-                f.write(
-                    f"{generation},{max_f},{min_f},{mean_f},{std_f},{cost_time}\n"
-                )
+                f.write(f"{generation},{max_f},{min_f},{mean_f},{std_f},{cost_time}\n")
 
         print(
             f"Generation: {generation}, Cost time: {cost_time * 1000:.2f}ms\n",
