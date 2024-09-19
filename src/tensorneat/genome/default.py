@@ -100,20 +100,22 @@ class DefaultGenome(BaseGenome):
                     conns_attrs, conn_indices
                 )  # fetch conn attrs
 
-                # Modify this part
+                # Modify this part to handle batched inputs
                 ins = vmap(
-                    lambda a, v: self.conn_gene.forward(state, a, v), in_axes=(0, None)
-                )(hit_attrs, values[:, i])
+                    lambda a, v: self.conn_gene.forward(state, a, v), in_axes=(0, 0)
+                )(hit_attrs, values)
 
                 # calculate nodes
-                z = self.node_gene.forward(
-                    state,
-                    nodes_attrs[i],
-                    ins,
-                    is_output_node=jnp.isin(
-                        nodes[i, 0], self.output_idx
-                    ),  # nodes[0] -> the key of nodes
-                )
+                z = vmap(
+                    lambda x: self.node_gene.forward(
+                        state,
+                        nodes_attrs[i],
+                        x,
+                        is_output_node=jnp.isin(
+                            nodes[i, 0], self.output_idx
+                        ),  # nodes[0] -> the key of nodes
+                    )
+                )(ins)
 
                 # set new value
                 new_values = values.at[:, i].set(z)
