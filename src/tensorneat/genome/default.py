@@ -68,17 +68,23 @@ class DefaultGenome(BaseGenome):
         if self.input_transform is not None:
             inputs = self.input_transform(inputs)
 
+        print(f"Input shape after transform: {inputs.shape}")
+
         cal_seqs, nodes, conns, u_conns = transformed
 
         # Ensure inputs is a 2D array
         inputs = jnp.atleast_2d(inputs)
+        print(f"Input shape after atleast_2d: {inputs.shape}")
 
         # Create ini_vals with the correct shape
         ini_vals = jnp.full((inputs.shape[0], self.max_nodes), jnp.nan)
         ini_vals = ini_vals.at[:, self.input_idx].set(inputs)
+        print(f"Initial values shape: {ini_vals.shape}")
 
         nodes_attrs = vmap(extract_node_attrs)(nodes)
         conns_attrs = vmap(extract_conn_attrs)(conns)
+        print(f"Nodes attributes shape: {nodes_attrs.shape}")
+        print(f"Connections attributes shape: {conns_attrs.shape}")
 
         def cond_fun(carry):
             values, idx = carry
@@ -99,11 +105,14 @@ class DefaultGenome(BaseGenome):
                 hit_attrs = attach_with_inf(
                     conns_attrs, conn_indices
                 )  # fetch conn attrs
+                print(f"Connection indices shape: {conn_indices.shape}")
+                print(f"Hit attributes shape: {hit_attrs.shape}")
 
                 # Modify this part
                 ins = vmap(
                     lambda a, v: self.conn_gene.forward(state, a, v), in_axes=(0, None)
                 )(hit_attrs, values[:, i])
+                print(f"Inputs shape after connection forward: {ins.shape}")
 
                 # calculate nodes
                 z = self.node_gene.forward(
@@ -114,21 +123,27 @@ class DefaultGenome(BaseGenome):
                         nodes[i, 0], self.output_idx
                     ),  # nodes[0] -> the key of nodes
                 )
+                print(f"Node output shape: {z.shape}")
 
                 # set new value
                 new_values = values.at[:, i].set(z)
                 return new_values
 
             values = jax.lax.cond(jnp.isin(i, self.input_idx), input_node, otherwise)
+            print(f"Values shape after iteration {idx}: {values.shape}")
 
             return values, idx + 1
 
         vals, _ = jax.lax.while_loop(cond_fun, body_func, (ini_vals, 0))
+        print(f"Final values shape: {vals.shape}")
 
         if self.output_transform is None:
-            return vals[self.output_idx]
+            output = vals[self.output_idx]
         else:
-            return self.output_transform(vals[self.output_idx])
+            output = self.output_transform(vals[self.output_idx])
+
+        print(f"Output shape: {output.shape}")
+        return output
 
     def network_dict(self, state, nodes, conns):
         network = super().network_dict(state, nodes, conns)
