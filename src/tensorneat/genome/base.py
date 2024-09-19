@@ -52,7 +52,7 @@ class BaseGenome(StatefulBaseClass):
         for layer in all_layers:
             layer_indices.append(list(range(next_index, next_index + layer)))
             next_index += layer
-
+        print(f"Layer indices: {layer_indices}")
         all_init_nodes = []
         all_init_conns_in_idx = []
         all_init_conns_out_idx = []
