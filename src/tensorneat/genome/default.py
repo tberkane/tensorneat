@@ -99,8 +99,10 @@ class DefaultGenome(BaseGenome):
                 hit_attrs = attach_with_inf(
                     conns_attrs, conn_indices
                 )  # fetch conn attrs
-                ins = vmap(self.conn_gene.forward, in_axes=(None, 0, 0))(
-                    state, hit_attrs, values
+
+                # Modify this part
+                ins = vmap(lambda a, v: self.conn_gene.forward(state, a, v))(
+                    hit_attrs, values
                 )
 
                 # calculate nodes
