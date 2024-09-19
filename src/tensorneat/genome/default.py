@@ -99,9 +99,11 @@ class DefaultGenome(BaseGenome):
                 hit_attrs = attach_with_inf(
                     conns_attrs, conn_indices
                 )  # fetch conn attrs
-                ins = vmap(self.conn_gene.forward, in_axes=(None, 0, 0))(
-                    state, hit_attrs, values
-                )
+
+                # Modify this part
+                ins = vmap(
+                    lambda a, v: self.conn_gene.forward(state, a, v), in_axes=(0, None)
+                )(hit_attrs, values[:, i])
 
                 # calculate nodes
                 z = self.node_gene.forward(
@@ -114,7 +116,7 @@ class DefaultGenome(BaseGenome):
                 )
 
                 # set new value
-                new_values = values.at[i].set(z)
+                new_values = values.at[:, i].set(z)
                 return new_values
 
             values = jax.lax.cond(jnp.isin(i, self.input_idx), input_node, otherwise)
