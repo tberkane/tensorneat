@@ -16,7 +16,7 @@ from tensorneat.common import (
     I_INF,
     attach_with_inf,
     ACT,
-    AGG
+    AGG,
 )
 
 
@@ -331,3 +331,11 @@ class DefaultGenome(BaseGenome):
             **kwargs,
         )
         plt.savefig(save_path, dpi=save_dpi)
+
+    def compute_gradients(self, state, nodes, conns, inputs, targets):
+        def loss_fn(nodes, conns):
+            transformed = self.transform(state, nodes, conns)
+            outputs = self.forward(state, transformed, inputs)
+            return jnp.mean((outputs - targets) ** 2)
+
+        return jax.grad(loss_fn)(nodes, conns)

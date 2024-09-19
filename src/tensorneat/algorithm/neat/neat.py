@@ -52,6 +52,12 @@ class NEAT(BaseAlgorithm):
             state, initialize_keys
         )
 
+        # Initialize connection weights
+        k2, randkey = jax.random.split(randkey)
+        pop_conns = (
+            jax.random.normal(k2, pop_conns.shape) * 0.1
+        )  # Small initial weights
+
         state = state.register(
             pop_nodes=pop_nodes,
             pop_conns=pop_conns,
@@ -63,8 +69,49 @@ class NEAT(BaseAlgorithm):
 
         return state.update(randkey=randkey)
 
-    def ask(self, state):
-        return state.pop_nodes, state.pop_conns
+    def ask(self, state, training_data, num_epochs=10):
+        pop_nodes, pop_conns = state.pop_nodes, state.pop_conns
+
+        print(
+            f"Starting training for {self.pop_size} networks, {num_epochs} epochs each"
+        )
+
+        for i in range(self.pop_size):
+            nodes, conns = pop_nodes[i], pop_conns[i]
+            print(f"Training network {i+1}/{self.pop_size}")
+            for epoch in range(num_epochs):
+                print(f"  Epoch {epoch+1}/{num_epochs}")
+                nodes, conns = self.train_network(state, nodes, conns, training_data)
+            pop_nodes = pop_nodes.at[i].set(nodes)
+            pop_conns = pop_conns.at[i].set(conns)
+
+        print("Training completed")
+        return pop_nodes, pop_conns
+
+    def train_network(self, state, nodes, conns, training_data):
+        print("  Computing gradients")
+        # Compute gradients
+        grads = self.genome.compute_gradients(
+            state, nodes, conns, training_data["inputs"], training_data["targets"]
+        )
+
+        print("  Updating weights")
+        # Update weights
+        nodes, conns = self.update_weights(nodes, conns, grads)
+
+        return nodes, conns
+
+    def compute_loss(self, outputs, targets):
+        loss = jnp.mean((outputs - targets) ** 2)
+        print(f"  Computed loss: {loss}")
+        return loss
+
+    def update_weights(self, nodes, conns, grads):
+        learning_rate = 0.01  # You might want to make this configurable
+        print(f"  Updating weights with learning rate: {learning_rate}")
+        nodes = nodes - learning_rate * grads[0]
+        conns = conns - learning_rate * grads[1]
+        return nodes, conns
 
     def tell(self, state, fitness):
         state = state.update(generation=state.generation + 1)
