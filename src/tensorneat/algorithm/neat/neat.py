@@ -101,9 +101,12 @@ class NEAT(BaseAlgorithm):
         return nodes, conns
 
     def compute_loss(self, outputs, targets):
-        loss = jnp.mean((outputs - targets) ** 2)
-        print(f"  Computed loss: {loss}")
-        return loss
+        # Compute cross-entropy loss
+        epsilon = 1e-12  # Small value to avoid log(0)
+        outputs = jnp.clip(
+            outputs, epsilon, 1 - epsilon
+        )  # Clip values to avoid numerical instability
+        return -jnp.sum(targets * jnp.log(outputs)) / outputs.shape[0]
 
     def update_weights(self, nodes, conns, grads):
         learning_rate = 0.01  # You might want to make this configurable

@@ -339,3 +339,11 @@ class DefaultGenome(BaseGenome):
             return jnp.mean((outputs - targets) ** 2)
 
         return jax.grad(loss_fn)(nodes, conns)
+
+    def compute_loss(self, outputs, targets):
+        # Compute cross-entropy loss
+        epsilon = 1e-12  # Small value to avoid log(0)
+        outputs = jnp.clip(
+            outputs, epsilon, 1 - epsilon
+        )  # Clip values to avoid numerical instability
+        return -jnp.sum(targets * jnp.log(outputs)) / outputs.shape[0]
