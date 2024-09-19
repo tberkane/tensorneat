@@ -65,14 +65,18 @@ class DefaultGenome(BaseGenome):
         return seqs, nodes, conns, u_conns
 
     def forward(self, state, transformed, inputs):
-
         if self.input_transform is not None:
             inputs = self.input_transform(inputs)
 
         cal_seqs, nodes, conns, u_conns = transformed
 
-        ini_vals = jnp.full((self.max_nodes,), jnp.nan)
-        ini_vals = ini_vals.at[self.input_idx].set(inputs)
+        # Ensure inputs is a 2D array
+        inputs = jnp.atleast_2d(inputs)
+
+        # Create ini_vals with the correct shape
+        ini_vals = jnp.full((inputs.shape[0], self.max_nodes), jnp.nan)
+        ini_vals = ini_vals.at[:, self.input_idx].set(inputs)
+
         nodes_attrs = vmap(extract_node_attrs)(nodes)
         conns_attrs = vmap(extract_conn_attrs)(conns)
 
