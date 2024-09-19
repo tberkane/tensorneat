@@ -65,18 +65,14 @@ class DefaultGenome(BaseGenome):
         return seqs, nodes, conns, u_conns
 
     def forward(self, state, transformed, inputs):
+
         if self.input_transform is not None:
             inputs = self.input_transform(inputs)
 
         cal_seqs, nodes, conns, u_conns = transformed
 
-        # Ensure inputs is a 2D array
-        inputs = jnp.atleast_2d(inputs)
-
-        # Create ini_vals with the correct shape
-        ini_vals = jnp.full((inputs.shape[0], self.max_nodes), jnp.nan)
-        ini_vals = ini_vals.at[:, self.input_idx].set(inputs)
-
+        ini_vals = jnp.full((self.max_nodes,), jnp.nan)
+        ini_vals = ini_vals.at[self.input_idx].set(inputs)
         nodes_attrs = vmap(extract_node_attrs)(nodes)
         conns_attrs = vmap(extract_conn_attrs)(conns)
 
@@ -99,26 +95,22 @@ class DefaultGenome(BaseGenome):
                 hit_attrs = attach_with_inf(
                     conns_attrs, conn_indices
                 )  # fetch conn attrs
-
-                # Modify this part to handle batched inputs
-                ins = vmap(
-                    lambda a, v: self.conn_gene.forward(state, a, v), in_axes=(0, 0)
-                )(hit_attrs, values)
+                ins = vmap(self.conn_gene.forward, in_axes=(None, 0, 0))(
+                    state, hit_attrs, values
+                )
 
                 # calculate nodes
-                z = vmap(
-                    lambda x: self.node_gene.forward(
-                        state,
-                        nodes_attrs[i],
-                        x,
-                        is_output_node=jnp.isin(
-                            nodes[i, 0], self.output_idx
-                        ),  # nodes[0] -> the key of nodes
-                    )
-                )(ins)
+                z = self.node_gene.forward(
+                    state,
+                    nodes_attrs[i],
+                    ins,
+                    is_output_node=jnp.isin(
+                        nodes[i, 0], self.output_idx
+                    ),  # nodes[0] -> the key of nodes
+                )
 
                 # set new value
-                new_values = values.at[:, i].set(z)
+                new_values = values.at[i].set(z)
                 return new_values
 
             values = jax.lax.cond(jnp.isin(i, self.input_idx), input_node, otherwise)

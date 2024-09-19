@@ -82,13 +82,10 @@ def apply_aggregation(idx, z, agg_funcs):
     """
     idx = jnp.asarray(idx, dtype=jnp.int32)
 
-    def agg_wrapper(x):
-        return jax.lax.switch(idx, agg_funcs, x)
-
     return jax.lax.cond(
         jnp.all(jnp.isnan(z)),
-        lambda: jnp.full(z.shape[:-1], jnp.nan),  # Return NaNs with shape (50,)
-        lambda: jax.vmap(agg_wrapper)(z),  # Apply aggregation to each row
+        lambda: jnp.nan,  # all inputs are nan
+        lambda: jax.lax.switch(idx, agg_funcs, z),  # otherwise
     )
 
 
