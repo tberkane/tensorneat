@@ -8,6 +8,99 @@ from .species import SpeciesController
 from .. import BaseAlgorithm
 from tensorneat.common import State
 from tensorneat.genome import BaseGenome
+import jax
+import jax.numpy as jnp
+from jax import grad, jit
+from jax import random
+import optax
+
+
+class FlexibleNetwork:
+    def __init__(self, num_inputs, num_outputs, num_hidden, connections):
+        self.num_inputs = num_inputs
+        self.num_outputs = num_outputs
+        self.num_hidden = num_hidden
+        self.total_nodes = num_inputs + num_hidden + num_outputs
+        self.connections = connections
+
+    def init_params(self, key):
+        params = {}
+        for i, j in self.connections:
+            k = random.split(key)[0]
+            params[f"w_{i}_{j}"] = random.normal(k, (1,)) * jnp.sqrt(
+                2.0 / self.total_nodes
+            )
+        return params
+
+    def forward(self, params, x):
+        nodes = jnp.zeros(self.total_nodes)
+        nodes = nodes.at[: self.num_inputs].set(x)
+        for i in range(self.num_inputs, self.total_nodes):
+            incoming = [j for j, k in self.connections if k == i]
+            if incoming:
+                node_value = jnp.sum(
+                    jnp.array([nodes[j] * params[f"w_{j}_{i}"][0] for j in incoming])
+                )
+                nodes = nodes.at[i].set(jax.nn.tanh(node_value))
+        return nodes[-self.num_outputs :]
+
+
+def loss(params, net, x, y):
+    preds = net.forward(params, x)
+    return jnp.mean((preds - y) ** 2)
+
+
+@jit
+def update(params, net, x, y, opt_state, optimizer):
+    loss_value, grads = jax.value_and_grad(loss)(params, net, x, y)
+    updates, opt_state = optimizer.update(grads, opt_state)
+    params = optax.apply_updates(params, updates)
+    return params, opt_state, loss_value
+
+
+def train_flexible_network(
+    num_inputs,
+    num_outputs,
+    num_hidden,
+    connections,
+    data,
+    num_epochs,
+    batch_size=32,
+    learning_rate=0.01,
+):
+    # Initialize the network
+    net = FlexibleNetwork(num_inputs, num_outputs, num_hidden, connections)
+    key = random.PRNGKey(0)
+    params = net.init_params(key)
+
+    # Prepare data
+    x = jnp.array(data["inputs"])
+    y = jnp.array(data["targets"])
+
+    # Set up the optimizer
+    optimizer = optax.adam(learning_rate)
+    opt_state = optimizer.init(params)
+
+    # Training loop
+    num_batches = len(x) // batch_size
+
+    for epoch in range(num_epochs):
+        epoch_loss = 0.0
+        for i in range(num_batches):
+            batch_x = x[i * batch_size : (i + 1) * batch_size]
+            batch_y = y[i * batch_size : (i + 1) * batch_size]
+            params, opt_state, loss_value = update(
+                params, net, batch_x, batch_y, opt_state, optimizer
+            )
+            epoch_loss += loss_value
+
+        if epoch % 100 == 0:
+            print(f"Epoch {epoch}, Loss: {epoch_loss / num_batches:.4f}")
+
+    # Prepare the output weights
+    trained_weights = {key: float(value[0]) for key, value in params.items()}
+
+    return trained_weights
 
 
 class NEAT(BaseAlgorithm):
@@ -52,12 +145,6 @@ class NEAT(BaseAlgorithm):
             state, initialize_keys
         )
 
-        # Initialize connection weights
-        k2, randkey = jax.random.split(randkey)
-        pop_conns = (
-            jax.random.normal(k2, pop_conns.shape) * 0.1
-        )  # Small initial weights
-
         state = state.register(
             pop_nodes=pop_nodes,
             pop_conns=pop_conns,
@@ -76,44 +163,34 @@ class NEAT(BaseAlgorithm):
             for i in range(self.pop_size):
                 print(f"Training network {i+1}/{self.pop_size}")
                 nodes, conns = pop_nodes[i], pop_conns[i]
-                for _ in range(num_epochs):
-                    print(f"  Epoch {_+1}/{num_epochs}")
-                    nodes, conns = self.train_network(
-                        state, nodes, conns, training_data
-                    )
+
+                num_inputs = self.num_inputs
+                num_outputs = self.num_outputs
+                num_hidden = nodes.shape[1] - num_inputs - num_outputs
+                connections = [
+                    (int(conns[k, 0]), int(conns[k, 1])) for k in range(conns.shape[0])
+                ]
+
+                trained_weights = train_flexible_network(
+                    num_inputs,
+                    num_outputs,
+                    num_hidden,
+                    connections,
+                    training_data,
+                    num_epochs,
+                )
+
+                # Convert trained weights back to the right format
+                for j, (start, end) in enumerate(connections):
+                    weight_key = f"w_{start}_{end}"
+                    if weight_key in trained_weights:
+                        nodes = nodes.at[end, start].set(trained_weights[weight_key])
+
                 pop_nodes = pop_nodes.at[i].set(nodes)
                 pop_conns = pop_conns.at[i].set(conns)
 
         print("Training completed")
         return pop_nodes, pop_conns
-
-    def train_network(self, state, nodes, conns, training_data):
-        print("  Computing gradients")
-        # Compute gradients
-        grads = self.genome.compute_gradients(
-            state, nodes, conns, training_data["inputs"], training_data["targets"]
-        )
-
-        print("  Updating weights")
-        # Update weights
-        nodes, conns = self.update_weights(nodes, conns, grads)
-
-        return nodes, conns
-
-    def compute_loss(self, outputs, targets):
-        # Compute cross-entropy loss
-        epsilon = 1e-12  # Small value to avoid log(0)
-        outputs = jnp.clip(
-            outputs, epsilon, 1 - epsilon
-        )  # Clip values to avoid numerical instability
-        return -jnp.sum(targets * jnp.log(outputs)) / outputs.shape[0]
-
-    def update_weights(self, nodes, conns, grads):
-        learning_rate = 0.01  # You might want to make this configurable
-        print(f"  Updating weights with learning rate: {learning_rate}")
-        nodes = nodes - learning_rate * grads[0]
-        conns = conns - learning_rate * grads[1]
-        return nodes, conns
 
     def tell(self, state, fitness):
         state = state.update(generation=state.generation + 1)
