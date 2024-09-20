@@ -163,8 +163,8 @@ class NEAT(BaseAlgorithm):
 
                 num_inputs = self.num_inputs
                 num_outputs = self.num_outputs
-                print("nodes.shape", nodes.shape)
-                num_hidden = nodes.shape[1] - num_inputs - num_outputs
+                total_nodes = max(max(start, end) for start, end in conns) + 1
+                num_hidden = total_nodes - num_inputs - num_outputs
                 connections = [
                     (conns[k, 0].astype(int), conns[k, 1].astype(int))
                     for k in range(conns.shape[0])
@@ -304,9 +304,6 @@ def print_network_info(num_inputs, num_outputs, num_hidden, connections):
     print(f"  Outputs: {num_outputs}")
     print(f"  Hidden: {num_hidden}")
     print(f"  Total nodes: {total_nodes}")
-    print(f"  Connections:")
-    for j, k in connections:
-        print(f"    {j} -> {k}")
 
 
 # In your NEAT class, before calling train_network:
