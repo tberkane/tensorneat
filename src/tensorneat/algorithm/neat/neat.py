@@ -13,6 +13,7 @@ import jax.numpy as jnp
 from jax import grad, jit
 from jax import random
 import optax
+from jax import tree_util
 
 
 class FlexibleNetwork:
@@ -42,12 +43,31 @@ class FlexibleNetwork:
                     jnp.array([nodes[j] * params[f"w_{j}_{i}"][0] for j in incoming])
                 )
                 nodes = nodes.at[i].set(jax.nn.tanh(node_value))
-        return nodes[-self.num_outputs :]
+        return jax.nn.softmax(nodes[-self.num_outputs :])
+
+
+def flatten_net(obj):
+    children = (
+        obj.num_inputs,
+        obj.num_outputs,
+        obj.num_hidden,
+        obj.connections,
+    )
+    aux_data = None
+    return children, aux_data
+
+
+def unflatten_net(aux_data, children):
+    n = FlexibleNetwork(children[0], children[1], children[2], children[3])
+    return n
+
+
+tree_util.register_pytree_node(FlexibleNetwork, flatten_net, unflatten_net)
 
 
 def loss(params, net, x, y):
     preds = net.forward(params, x)
-    return jnp.mean((preds - y) ** 2)
+    return -jnp.mean(jnp.sum(y * jnp.log(preds + 1e-8), axis=-1))
 
 
 @jit
@@ -75,7 +95,7 @@ def train_flexible_network(
 
     # Prepare data
     x = jnp.array(data["inputs"])
-    y = jnp.array(data["targets"])
+    y = jax.nn.one_hot(jnp.array(data["targets"]), num_outputs)
 
     # Set up the optimizer
     optimizer = optax.adam(learning_rate)
