@@ -168,7 +168,8 @@ class NEAT(BaseAlgorithm):
                 num_outputs = self.num_outputs
                 num_hidden = nodes.shape[1] - num_inputs - num_outputs
                 connections = [
-                    (int(conns[k, 0]), int(conns[k, 1])) for k in range(conns.shape[0])
+                    (conns[k, 0].astype(int), conns[k, 1].astype(int))
+                    for k in range(conns.shape[0])
                 ]
 
                 trained_weights = train_flexible_network(
