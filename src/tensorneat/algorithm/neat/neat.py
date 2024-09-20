@@ -22,8 +22,7 @@ def init_params(num_inputs, num_outputs, num_hidden, connections, key):
 
 
 @jit
-def forward(params, x, num_inputs, num_outputs, num_hidden, connections):
-    total_nodes = num_inputs + num_hidden + num_outputs
+def forward(params, x, num_inputs, num_outputs, num_hidden, total_nodes, connections):
     batch_size = x.shape[0]
 
     # Use jnp.zeros_like with a known shape for initialization
@@ -49,16 +48,18 @@ def forward(params, x, num_inputs, num_outputs, num_hidden, connections):
     return jax.nn.softmax(nodes[:, -num_outputs:])
 
 
-forward = jit(forward, static_argnums=(2, 3, 4))
+forward = jit(forward, static_argnums=(2, 3, 4, 5))
 
 
 @jit
-def loss(params, x, y, num_inputs, num_outputs, num_hidden, connections):
-    preds = forward(params, x, num_inputs, num_outputs, num_hidden, connections)
+def loss(params, x, y, num_inputs, num_outputs, num_hidden, total_nodes, connections):
+    preds = forward(
+        params, x, num_inputs, num_outputs, num_hidden, total_nodes, connections
+    )
     return -jnp.mean(jnp.sum(y * jnp.log(preds + 1e-8), axis=-1))
 
 
-loss = jit(loss, static_argnums=(2, 3, 4))
+loss = jit(loss, static_argnums=(3, 4, 5, 6))
 
 
 def train_network(
@@ -86,6 +87,8 @@ def train_network(
     optimizer = optax.adam(learning_rate)
     opt_state = optimizer.init(params)
 
+    total_nodes = num_inputs + num_hidden + num_outputs
+
     # Training loop
     for epoch in range(num_epochs):
         loss_value, grads = jax.value_and_grad(loss)(
@@ -95,6 +98,7 @@ def train_network(
             num_inputs,
             num_outputs,
             num_hidden,
+            total_nodes,
             connections,
         )
         updates, opt_state = optimizer.update(grads, opt_state)
