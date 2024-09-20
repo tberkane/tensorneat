@@ -168,6 +168,7 @@ class NEAT(BaseAlgorithm):
                     (conns[k, 0].astype(int), conns[k, 1].astype(int))
                     for k in range(conns.shape[0])
                 ]
+                print_network_info(num_inputs, num_outputs, num_hidden, connections)
 
                 # Train the network
                 trained_weights = train_network(
@@ -308,4 +309,3 @@ def print_network_info(num_inputs, num_outputs, num_hidden, connections):
 
 
 # In your NEAT class, before calling train_network:
-print_network_info(num_inputs, num_outputs, num_hidden, connections)
