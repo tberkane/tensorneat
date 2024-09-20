@@ -21,10 +21,19 @@ def init_params(num_inputs, num_outputs, num_hidden, connections, key):
     return params
 
 
+@jax.jit(
+    static_argnums=(
+        2,
+        3,
+        4,
+    )
+)
 def forward(params, x, num_inputs, num_outputs, num_hidden, connections):
     total_nodes = num_inputs + num_hidden + num_outputs
     batch_size = x.shape[0]
-    nodes = jnp.zeros((batch_size, total_nodes))
+
+    # Use jnp.zeros_like with a known shape for initialization
+    nodes = jnp.zeros_like(x, shape=(batch_size, total_nodes))
     nodes = nodes.at[:, :num_inputs].set(x)
 
     # Pre-compute the incoming connections for each node
