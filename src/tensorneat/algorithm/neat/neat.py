@@ -49,10 +49,13 @@ def forward(params, x, num_inputs, num_outputs, num_hidden, connections):
     return jax.nn.softmax(nodes[:, -num_outputs:])
 
 
-@jax.jit(static_argnums=(2, 3, 4))
+@jit
 def loss(params, x, y, num_inputs, num_outputs, num_hidden, connections):
     preds = forward(params, x, num_inputs, num_outputs, num_hidden, connections)
     return -jnp.mean(jnp.sum(y * jnp.log(preds + 1e-8), axis=-1))
+
+
+loss = jit(loss, static_argnums=(2, 3, 4))
 
 
 def train_network(
