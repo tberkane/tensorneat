@@ -21,7 +21,7 @@ def init_params(num_inputs, num_outputs, num_hidden, connections, key):
     return params
 
 
-@jax.jit(static_argnums=(2, 3, 4))
+@jit(static_argnums=(2, 3, 4))
 def forward(params, x, num_inputs, num_outputs, num_hidden, connections):
     total_nodes = num_inputs + num_hidden + num_outputs
     batch_size = x.shape[0]
@@ -49,6 +49,7 @@ def forward(params, x, num_inputs, num_outputs, num_hidden, connections):
     return jax.nn.softmax(nodes[:, -num_outputs:])
 
 
+@jax.jit(static_argnums=(2, 3, 4))
 def loss(params, x, y, num_inputs, num_outputs, num_hidden, connections):
     preds = forward(params, x, num_inputs, num_outputs, num_hidden, connections)
     return -jnp.mean(jnp.sum(y * jnp.log(preds + 1e-8), axis=-1))
