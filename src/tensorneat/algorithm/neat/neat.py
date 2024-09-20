@@ -21,13 +21,7 @@ def init_params(num_inputs, num_outputs, num_hidden, connections, key):
     return params
 
 
-@jax.jit(
-    static_argnums=(
-        2,
-        3,
-        4,
-    )
-)
+@jax.jit(static_argnums=(2, 3, 4))
 def forward(params, x, num_inputs, num_outputs, num_hidden, connections):
     total_nodes = num_inputs + num_hidden + num_outputs
     batch_size = x.shape[0]
