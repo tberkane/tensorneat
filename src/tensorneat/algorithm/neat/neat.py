@@ -163,6 +163,7 @@ class NEAT(BaseAlgorithm):
 
                 num_inputs = self.num_inputs
                 num_outputs = self.num_outputs
+                print("nodes.shape", nodes.shape)
                 num_hidden = nodes.shape[1] - num_inputs - num_outputs
                 connections = [
                     (conns[k, 0].astype(int), conns[k, 1].astype(int))
