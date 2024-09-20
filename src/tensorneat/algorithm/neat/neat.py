@@ -21,7 +21,7 @@ def init_params(num_inputs, num_outputs, num_hidden, connections, key):
     return params
 
 
-@jit(static_argnums=(2, 3, 4))
+@jit
 def forward(params, x, num_inputs, num_outputs, num_hidden, connections):
     total_nodes = num_inputs + num_hidden + num_outputs
     batch_size = x.shape[0]
@@ -47,6 +47,9 @@ def forward(params, x, num_inputs, num_outputs, num_hidden, connections):
         nodes = nodes.at[:, i].set(jax.nn.tanh(node_value))
 
     return jax.nn.softmax(nodes[:, -num_outputs:])
+
+
+forward = jit(forward, static_argnums=(2, 3, 4))
 
 
 @jit
