@@ -8,77 +8,51 @@ from .species import SpeciesController
 from .. import BaseAlgorithm
 from tensorneat.common import State
 from tensorneat.genome import BaseGenome
-import jax
-import jax.numpy as jnp
-from jax import grad, jit
-from jax import random
+from jax import grad, jit, random
 import optax
-from jax import tree_util
 
 
-class FlexibleNetwork:
-    def __init__(self, num_inputs, num_outputs, num_hidden, connections):
-        self.num_inputs = num_inputs
-        self.num_outputs = num_outputs
-        self.num_hidden = num_hidden
-        self.total_nodes = num_inputs + num_hidden + num_outputs
-        self.connections = connections
+def init_params(num_inputs, num_outputs, num_hidden, connections, key):
+    total_nodes = num_inputs + num_hidden + num_outputs
+    params = {}
+    for i, j in connections:
+        k = random.split(key)[0]
+        params[f"w_{i}_{j}"] = random.normal(k, (1,)) * jnp.sqrt(2.0 / total_nodes)
+    return params
 
-    def init_params(self, key):
-        params = {}
-        for i, j in self.connections:
-            k = random.split(key)[0]
-            params[f"w_{i}_{j}"] = random.normal(k, (1,)) * jnp.sqrt(
-                2.0 / self.total_nodes
+
+def forward(params, x, num_inputs, num_outputs, num_hidden, connections):
+    total_nodes = num_inputs + num_hidden + num_outputs
+    nodes = jnp.zeros(total_nodes)
+    nodes = nodes.at[:num_inputs].set(x)
+    for i in range(num_inputs, total_nodes):
+        incoming = [j for j, k in connections if k == i]
+        if incoming:
+            node_value = jnp.sum(
+                jnp.array([nodes[j] * params[f"w_{j}_{i}"][0] for j in incoming])
             )
-        return params
-
-    def forward(self, params, x):
-        nodes = jnp.zeros(self.total_nodes)
-        nodes = nodes.at[: self.num_inputs].set(x)
-        for i in range(self.num_inputs, self.total_nodes):
-            incoming = [j for j, k in self.connections if k == i]
-            if incoming:
-                node_value = jnp.sum(
-                    jnp.array([nodes[j] * params[f"w_{j}_{i}"][0] for j in incoming])
-                )
-                nodes = nodes.at[i].set(jax.nn.tanh(node_value))
-        return jax.nn.softmax(nodes[-self.num_outputs :])
+            nodes = nodes.at[i].set(jax.nn.tanh(node_value))
+    return jax.nn.softmax(nodes[-num_outputs:])
 
 
-def flatten_net(obj):
-    children = (
-        obj.num_inputs,
-        obj.num_outputs,
-        obj.num_hidden,
-        obj.connections,
-    )
-    aux_data = None
-    return children, aux_data
-
-
-def unflatten_net(aux_data, children):
-    n = FlexibleNetwork(children[0], children[1], children[2], children[3])
-    return n
-
-
-tree_util.register_pytree_node(FlexibleNetwork, flatten_net, unflatten_net)
-
-
-def loss(params, net, x, y):
-    preds = net.forward(params, x)
+def loss(params, x, y, num_inputs, num_outputs, num_hidden, connections):
+    preds = forward(params, x, num_inputs, num_outputs, num_hidden, connections)
     return -jnp.mean(jnp.sum(y * jnp.log(preds + 1e-8), axis=-1))
 
 
 @jit
-def update(params, net, x, y, opt_state, optimizer):
-    loss_value, grads = jax.value_and_grad(loss)(params, net, x, y)
+def update(
+    params, x, y, opt_state, optimizer, num_inputs, num_outputs, num_hidden, connections
+):
+    loss_value, grads = jax.value_and_grad(loss)(
+        params, x, y, num_inputs, num_outputs, num_hidden, connections
+    )
     updates, opt_state = optimizer.update(grads, opt_state)
     params = optax.apply_updates(params, updates)
     return params, opt_state, loss_value
 
 
-def train_flexible_network(
+def train_network(
     num_inputs,
     num_outputs,
     num_hidden,
@@ -89,9 +63,8 @@ def train_flexible_network(
     learning_rate=0.01,
 ):
     # Initialize the network
-    net = FlexibleNetwork(num_inputs, num_outputs, num_hidden, connections)
     key = random.PRNGKey(0)
-    params = net.init_params(key)
+    params = init_params(num_inputs, num_outputs, num_hidden, connections, key)
 
     # Prepare data
     x = jnp.array(data["inputs"])
@@ -110,7 +83,15 @@ def train_flexible_network(
             batch_x = x[i * batch_size : (i + 1) * batch_size]
             batch_y = y[i * batch_size : (i + 1) * batch_size]
             params, opt_state, loss_value = update(
-                params, net, batch_x, batch_y, opt_state, optimizer
+                params,
+                batch_x,
+                batch_y,
+                opt_state,
+                optimizer,
+                num_inputs,
+                num_outputs,
+                num_hidden,
+                connections,
             )
             epoch_loss += loss_value
 
@@ -193,9 +174,8 @@ class NEAT(BaseAlgorithm):
                     for k in range(conns.shape[0])
                 ]
 
-                # Create the network and train it
-                net = FlexibleNetwork(num_inputs, num_outputs, num_hidden, connections)
-                trained_weights = train_flexible_network(
+                # Train the network
+                trained_weights = train_network(
                     num_inputs,
                     num_outputs,
                     num_hidden,
