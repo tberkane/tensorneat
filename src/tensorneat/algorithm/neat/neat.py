@@ -78,7 +78,7 @@ def train_network(
 
     # Prepare data
     x = jnp.array(data["inputs"])
-    y = jax.nn.one_hot(jnp.array(data["targets"]), num_outputs)
+    y = jax.nn.one_hot(jnp.array(data["targets"]), 3)
 
     # Ensure x is 2D
     if x.ndim == 1:
