@@ -162,16 +162,18 @@ class NEAT(BaseAlgorithm):
         if training_data is not None:
             for i in range(self.pop_size):
                 print(f"Training network {i+1}/{self.pop_size}")
-                nodes, conns = pop_nodes[i], pop_conns[i]
+                nodes = pop_nodes[i]
+                conns = pop_conns[i]
 
                 num_inputs = self.num_inputs
                 num_outputs = self.num_outputs
                 num_hidden = nodes.shape[1] - num_inputs - num_outputs
                 connections = [
-                    (conns[k, 0].astype(int), conns[k, 1].astype(int))
-                    for k in range(conns.shape[0])
+                    (int(conns[k, 0]), int(conns[k, 1])) for k in range(conns.shape[0])
                 ]
 
+                # Create the network and train it
+                net = FlexibleNetwork(num_inputs, num_outputs, num_hidden, connections)
                 trained_weights = train_flexible_network(
                     num_inputs,
                     num_outputs,
@@ -185,10 +187,12 @@ class NEAT(BaseAlgorithm):
                 for j, (start, end) in enumerate(connections):
                     weight_key = f"w_{start}_{end}"
                     if weight_key in trained_weights:
-                        nodes = nodes.at[end, start].set(trained_weights[weight_key])
+                        nodes = nodes.at[end, start].set(
+                            jnp.array(trained_weights[weight_key])
+                        )
 
                 pop_nodes = pop_nodes.at[i].set(nodes)
-                pop_conns = pop_conns.at[i].set(conns)
+                # No need to update pop_conns as connections haven't changed
 
         print("Training completed")
         return pop_nodes, pop_conns
