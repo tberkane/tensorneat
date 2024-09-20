@@ -28,7 +28,7 @@ def forward(params, x, num_inputs, num_outputs, num_hidden, connections):
     nodes = nodes.at[:, :num_inputs].set(x)
 
     # Pre-compute the incoming connections for each node
-    incoming_connections = {i: [] for i in range(num_inputs, total_nodes)}
+    incoming_connections = {i: [] for i in range(total_nodes)}
     for j, k in connections:
         incoming_connections[k].append(j)
 
