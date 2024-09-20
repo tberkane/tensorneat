@@ -47,7 +47,6 @@ def train_network(
     connections,
     data,
     num_epochs,
-    batch_size=32,
     learning_rate=0.01,
 ):
     # Initialize the network
@@ -63,28 +62,21 @@ def train_network(
     opt_state = optimizer.init(params)
 
     # Training loop
-    num_batches = len(x) // batch_size
-
     for epoch in range(num_epochs):
-        epoch_loss = 0.0
-        for i in range(num_batches):
-            batch_x = x[i * batch_size : (i + 1) * batch_size]
-            batch_y = y[i * batch_size : (i + 1) * batch_size]
-            loss_value, grads = jax.value_and_grad(loss)(
-                params,
-                batch_x,
-                batch_y,
-                num_inputs,
-                num_outputs,
-                num_hidden,
-                connections,
-            )
-            updates, opt_state = optimizer.update(grads, opt_state)
-            params = optax.apply_updates(params, updates)
-            epoch_loss += loss_value
+        loss_value, grads = jax.value_and_grad(loss)(
+            params,
+            x,
+            y,
+            num_inputs,
+            num_outputs,
+            num_hidden,
+            connections,
+        )
+        updates, opt_state = optimizer.update(grads, opt_state)
+        params = optax.apply_updates(params, updates)
 
         if epoch % 100 == 0:
-            print(f"Epoch {epoch}, Loss: {epoch_loss / num_batches:.4f}")
+            print(f"Epoch {epoch}, Loss: {loss_value:.4f}")
 
     # Prepare the output weights
     trained_weights = {key: float(value[0]) for key, value in params.items()}
