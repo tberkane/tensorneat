@@ -163,7 +163,13 @@ class NEAT(BaseAlgorithm):
 
                 num_inputs = self.num_inputs
                 num_outputs = self.num_outputs
-                total_nodes = max(max(start, end) for start, end in conns) + 1
+                total_nodes = (
+                    max(
+                        max(conns[k, 0].astype(int), conns[k, 1].astype(int))
+                        for k in range(conns.shape[0])
+                    )
+                    + 1
+                )
                 num_hidden = total_nodes - num_inputs - num_outputs
                 connections = [
                     (conns[k, 0].astype(int), conns[k, 1].astype(int))
