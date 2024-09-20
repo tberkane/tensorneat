@@ -30,6 +30,9 @@ def forward(params, x, num_inputs, num_outputs, num_hidden, connections):
     # Pre-compute the incoming connections for each node
     incoming_connections = {i: [] for i in range(total_nodes)}
     for j, k in connections:
+        if j >= total_nodes or k >= total_nodes:
+            print(f"Warning: Invalid connection {j} -> {k}. Total nodes: {total_nodes}")
+            continue
         incoming_connections[k].append(j)
 
     for i in range(num_inputs, total_nodes):
@@ -289,3 +292,20 @@ class NEAT(BaseAlgorithm):
             f"\tconn counts: max: {max_conn_cnt}, min: {min_conn_cnt}, mean: {mean_conn_cnt:.2f}\n",
             f"\tspecies: {len(species_sizes)}, {species_sizes}\n",
         )
+
+
+# Add this debugging function
+def print_network_info(num_inputs, num_outputs, num_hidden, connections):
+    total_nodes = num_inputs + num_hidden + num_outputs
+    print(f"Network info:")
+    print(f"  Inputs: {num_inputs}")
+    print(f"  Outputs: {num_outputs}")
+    print(f"  Hidden: {num_hidden}")
+    print(f"  Total nodes: {total_nodes}")
+    print(f"  Connections:")
+    for j, k in connections:
+        print(f"    {j} -> {k}")
+
+
+# In your NEAT class, before calling train_network:
+print_network_info(num_inputs, num_outputs, num_hidden, connections)
