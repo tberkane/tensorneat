@@ -82,17 +82,7 @@ def train_network(
         for i in range(num_batches):
             batch_x = x[i * batch_size : (i + 1) * batch_size]
             batch_y = y[i * batch_size : (i + 1) * batch_size]
-            params, opt_state, loss_value = update(
-                params,
-                batch_x,
-                batch_y,
-                opt_state,
-                optimizer,
-                num_inputs,
-                num_outputs,
-                num_hidden,
-                connections,
-            )
+            params, opt_state, loss_value = None, None, None
             epoch_loss += loss_value
 
         if epoch % 100 == 0:
