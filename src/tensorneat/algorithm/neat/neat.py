@@ -170,6 +170,7 @@ class NEAT(BaseAlgorithm):
 
         return state.update(randkey=randkey)
 
+    @jit(static_argnums=(1,))
     def ask(self, state, training_data=None, num_epochs=1):
         pop_nodes, pop_conns = state.pop_nodes, state.pop_conns
 
