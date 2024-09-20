@@ -30,18 +30,13 @@ def forward(params, x, num_inputs, num_outputs, num_hidden, connections):
     # Pre-compute the incoming connections for each node
     incoming_connections = {i: [] for i in range(num_inputs, total_nodes)}
     for j, k in connections:
-        if k >= num_inputs:
-            incoming_connections[k].append(j)
+        incoming_connections[k].append(j)
 
     for i in range(num_inputs, total_nodes):
         incoming = incoming_connections[i]
-        node_value = (
-            jnp.sum(
-                jnp.array([nodes[:, j] * params[f"w_{j}_{i}"][0] for j in incoming]),
-                axis=0,
-            )
-            if incoming
-            else jnp.zeros(batch_size)
+        node_value = jnp.sum(
+            jnp.array([nodes[:, j] * params[f"w_{j}_{i}"][0] for j in incoming]),
+            axis=0,
         )
         nodes = nodes.at[:, i].set(jax.nn.tanh(node_value))
 
