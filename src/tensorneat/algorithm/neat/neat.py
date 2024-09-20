@@ -91,7 +91,7 @@ def train_network(
     total_nodes = num_inputs + num_hidden + num_outputs
 
     # Training loop
-    for epoch in range(num_epochs):
+    for epoch in range(5):
         loss_value, grads = jax.value_and_grad(loss)(
             params,
             x,
