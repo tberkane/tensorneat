@@ -40,18 +40,6 @@ def loss(params, x, y, num_inputs, num_outputs, num_hidden, connections):
     return -jnp.mean(jnp.sum(y * jnp.log(preds + 1e-8), axis=-1))
 
 
-@jit
-def update(
-    params, x, y, opt_state, optimizer, num_inputs, num_outputs, num_hidden, connections
-):
-    loss_value, grads = jax.value_and_grad(loss)(
-        params, x, y, num_inputs, num_outputs, num_hidden, connections
-    )
-    updates, opt_state = optimizer.update(grads, opt_state)
-    params = optax.apply_updates(params, updates)
-    return params, opt_state, loss_value
-
-
 def train_network(
     num_inputs,
     num_outputs,
@@ -82,7 +70,17 @@ def train_network(
         for i in range(num_batches):
             batch_x = x[i * batch_size : (i + 1) * batch_size]
             batch_y = y[i * batch_size : (i + 1) * batch_size]
-            params, opt_state, loss_value = None, None, None
+            loss_value, grads = jax.value_and_grad(loss)(
+                params,
+                batch_x,
+                batch_y,
+                num_inputs,
+                num_outputs,
+                num_hidden,
+                connections,
+            )
+            updates, opt_state = optimizer.update(grads, opt_state)
+            params = optax.apply_updates(params, updates)
             epoch_loss += loss_value
 
         if epoch % 100 == 0:
