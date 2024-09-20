@@ -23,16 +23,18 @@ def init_params(num_inputs, num_outputs, num_hidden, connections, key):
 
 def forward(params, x, num_inputs, num_outputs, num_hidden, connections):
     total_nodes = num_inputs + num_hidden + num_outputs
-    nodes = jnp.zeros(total_nodes)
-    nodes = nodes.at[:num_inputs].set(x)
+    batch_size = x.shape[0]
+    nodes = jnp.zeros((batch_size, total_nodes))
+    nodes = nodes.at[:, :num_inputs].set(x)
     for i in range(num_inputs, total_nodes):
         incoming = [j for j, k in connections if k == i]
         if incoming:
             node_value = jnp.sum(
-                jnp.array([nodes[j] * params[f"w_{j}_{i}"][0] for j in incoming])
+                jnp.array([nodes[:, j] * params[f"w_{j}_{i}"][0] for j in incoming]),
+                axis=0,
             )
-            nodes = nodes.at[i].set(jax.nn.tanh(node_value))
-    return jax.nn.softmax(nodes[-num_outputs:])
+            nodes = nodes.at[:, i].set(jax.nn.tanh(node_value))
+    return jax.nn.softmax(nodes[:, -num_outputs:])
 
 
 def loss(params, x, y, num_inputs, num_outputs, num_hidden, connections):
@@ -56,6 +58,10 @@ def train_network(
     # Prepare data
     x = jnp.array(data["inputs"])
     y = jax.nn.one_hot(jnp.array(data["targets"]), num_outputs)
+
+    # Ensure x is 2D
+    if x.ndim == 1:
+        x = x.reshape(1, -1)
 
     # Set up the optimizer
     optimizer = optax.adam(learning_rate)
