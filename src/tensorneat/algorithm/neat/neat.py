@@ -21,7 +21,6 @@ def init_params(num_inputs, num_outputs, num_hidden, connections, key):
     return params
 
 
-@jit
 def forward(params, x, num_inputs, num_outputs, num_hidden, total_nodes, connections):
     batch_size = x.shape[0]
 
@@ -48,10 +47,6 @@ def forward(params, x, num_inputs, num_outputs, num_hidden, total_nodes, connect
     return jax.nn.softmax(nodes[:, -num_outputs:])
 
 
-forward = jit(forward, static_argnums=(2, 3, 4, 5))
-
-
-@jit
 def loss(params, x, y, num_inputs, num_outputs, num_hidden, total_nodes, connections):
     preds = forward(
         params, x, num_inputs, num_outputs, num_hidden, total_nodes, connections
@@ -59,10 +54,6 @@ def loss(params, x, y, num_inputs, num_outputs, num_hidden, total_nodes, connect
     return -jnp.mean(jnp.sum(y * jnp.log(preds + 1e-8), axis=-1))
 
 
-loss = jit(loss, static_argnums=(3, 4, 5, 6))
-
-
-@jit
 def train_network(
     num_inputs,
     num_outputs,
@@ -112,9 +103,6 @@ def train_network(
     trained_weights = {key: float(value[0]) for key, value in params.items()}
 
     return trained_weights
-
-
-train_network = jit(train_network, static_argnums=(0, 1, 2))
 
 
 class NEAT(BaseAlgorithm):
@@ -214,8 +202,6 @@ class NEAT(BaseAlgorithm):
 
         print("Training completed")
         return pop_nodes, pop_conns
-
-    ask = jit(ask, static_argnums=(1,))
 
     def tell(self, state, fitness):
         state = state.update(generation=state.generation + 1)
